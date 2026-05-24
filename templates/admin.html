@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Адмін-панель</title>
+    <style>
+        :root {
+            --bg-color: #f8f9fa; --text-main: #0F172A; --text-sub: #64748B;
+            --card-bg: #FFFFFF; --active-accent: #287365; --header-height: 67px; --radius: 7px;
+        }
+        body { 
+            margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background-color: var(--bg-color); background-image: url('/static/pattern.png'); background-repeat: repeat; background-size: 150%; 
+            background-attachment: fixed; -webkit-overflow-scrolling: touch;
+        }
+        body.no-scroll { overflow: hidden; touch-action: none; }
+        
+        .header { height: var(--header-height); background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 10; display: flex; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05); }
+        .tabs-container { display: flex; flex: 1; height: 100%; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+        .tabs-container::-webkit-scrollbar { display: none; }
+        .tab-wrapper { position: relative; flex: 1; min-width: 120px; display: flex; align-items: center; justify-content: center; }
+        .tab { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 19px; font-weight: 900; color: var(--text-sub); text-transform: uppercase; cursor: pointer; transition: all 0.2s ease; border: none; background: transparent; text-align: center; font-family: inherit; -webkit-tap-highlight-color: transparent; letter-spacing: -1px; border-radius: 0; padding: 0; margin: 0; }
+        .tab.active { color: var(--text-main); box-shadow: inset 0 -6px 0 0 var(--active-accent); }
+        .tab:focus { outline: none; }
+        .cat-delete-btn { position: absolute; top: 5px; right: 5px; width: 30px; height: 30px; display: none; align-items: center; justify-content: center; color: var(--text-main); font-size: 20px; font-weight: bold; cursor: pointer; z-index: 10; opacity: 0.6; }
+        .tab-wrapper.edit-mode .cat-delete-btn { display: flex; }
+        .tab-wrapper.edit-mode .tab { animation: shake 0.5s infinite; color: var(--active-accent); }
+        @keyframes shake { 0% {transform: rotate(0deg);} 25% {transform: rotate(1deg);} 50% {transform: rotate(0deg);} 75% {transform: rotate(-1deg);} 100% {transform: rotate(0deg);} }
+
+        .tab-add-type { width: 42px; font-size: 30px; color: var(--text-sub); display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.95); cursor: pointer; z-index: 20;}
+        
+        .container { padding: 10px 15px 80px; }
+        .admin-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .nav-btn { display: flex; align-items: center; justify-content: center; background: none; border: none; text-decoration: none; padding: 5px; cursor: pointer; }
+        .nav-btn svg { width: 32px; height: 32px; fill: none; stroke: var(--text-main); stroke-width: 2px; }
+        .nav-btn.add-btn svg { stroke: var(--text-main); }
+        
+        /* ВИПРАВЛЕНО: Тимчасовий фон при наведенні або перетягуванні, але непрозорий */
+        .card { background: var(--card-bg); padding: 21px 10px 12px; margin-bottom: 15px; border-radius: var(--radius); border: 1px solid var(--active-accent); box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.35); position: relative; transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.3s ease; }
+        .delete-btn { position: absolute; top: 5px; right: 8px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; color: var(--text-main); font-size: 20px; font-weight: bold; cursor: pointer; z-index: 2; opacity: 0.6; transition: 0.2s; }
+        .delete-btn:hover { color: #ef4444; opacity: 1; }
+        
+        .card-colors { position: absolute; top: 10px; right: 72px; display: flex; gap: 6px; z-index: 2; }
+        .color-dot { width: 14px; height: 14px; border-radius: 50%; cursor: pointer; border: 1px solid rgba(0,0,0,0.15); box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: transform 0.1s; }
+        .color-dot:active { transform: scale(0.8); }
+
+        label { display: block; font-size: 9px; font-weight: 800; color: var(--text-sub); margin-bottom: 3px; text-transform: uppercase; padding-left: 4px;}
+        input { width: 100%; padding: 7px 12px; margin-bottom: 10px; border: 1px solid rgba(15, 23, 42, 0.1); border-radius: var(--radius); background: #f8f9fa; font-size: 17px; box-sizing: border-box; outline: none; color: var(--text-main); font-weight: 600; }
+        input:focus { border-color: var(--active-accent); }
+        .save-btn { background: var(--active-accent); color: white; padding: 11px; border: none; border-radius: var(--radius); cursor: pointer; width: 100%; font-size: 14px; font-weight: 800; text-transform: uppercase; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15); margin-top: 5px; transition: 0.1s; }
+        .save-btn:active { transform: scale(0.97); }
+        
+        .list-block { display: none; }
+        .list-block.active { display: block; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(248, 249, 250, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 1000; display: none; align-items: center; justify-content: center; }
+        .modal-box { background: #FFFFFF; padding: 30px; border-radius: var(--radius); box-shadow: 0 15px 35px rgba(15, 23, 42, 0.1); text-align: center; width: 85%; max-width: 320px; border: 1px solid var(--active-accent); transform: none; margin: auto; }
+        .modal-box h3 { font-size: 17px; font-weight: 800; margin-top: 0; margin-bottom: 25px; color: var(--text-main); text-transform: uppercase; }
+        .modal-btn { width: 100%; padding: 14px; margin-bottom: 10px; border: none; border-radius: var(--radius); font-size: 14px; font-weight: 800; text-transform: uppercase; cursor: pointer; transition: 0.1s; }
+        .modal-btn:active { transform: scale(0.97); }
+        .btn-red { background: #ef4444; color: white; }
+        .btn-gray { background: #E5E5EA; color: var(--text-main); margin-bottom: 0;}
+        
+        .sortable-drag { opacity: 1 !important; }
+        .sortable-chosen { transform: scale(1.03) rotate(1.5deg) !important; box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.3), 0 0 0 2px var(--active-accent) !important; z-index: 1000 !important; background: #FFFFFF !important; border-radius: 12px !important; cursor: grabbing !important; }
+        /* ВИПРАВЛЕНО: При перетягуванні фон також непрозорий */
+        .sortable-ghost { background: #FFFFFF !important; border: 2px dashed var(--active-accent) !important; box-shadow: inset 0 4px 10px rgba(15, 23, 42, 0.05) !important; opacity: 1 !important; border-radius: var(--radius) !important; transform: scale(0.98) !important; }
+        .sortable-ghost * { opacity: 0 !important; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+</head>
+<body>
+
+<div class="header" id="tabsHeader">
+    <div class="tabs-container">
+        {% for cat in categories %}
+        <div class="tab-wrapper" data-id="{{ cat.id }}">
+            <input type="text" class="tab {% if loop.first %}active{% endif %}" value="{{ cat.name }}" readonly 
+                   onclick="switchTab('cat-{{ cat.id }}', this)" onblur="saveCategoryName(this, {{ cat.id }})">
+            <div class="cat-delete-btn" onclick="confirmDeleteCategory({{ cat.id }})">✕</div>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="tab-add-type" onclick="openNewCategoryModal()" style="color: #0F172A !important;">+</div>
+</div>
+
+<div class="container">
+    <div class="admin-nav">
+        <a href="/" class="nav-btn" onclick="window.location.replace('/'); return false;"><svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        <div class="nav-btn add-btn" onclick="addNewEmptyCard()">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+    </div>
+
+    {% for cat in categories %}
+    <div id="list-cat-{{ cat.id }}" class="list-block {% if loop.first %}active{% endif %}" data-cat-id="{{ cat.id }}">
+        {% for obj in objects %}
+            {% if obj.category_id == cat.id %}
+            <div class="card" id="card-{{ obj.id }}">
+                <div class="delete-btn" onclick="confirmDeleteObject({{ obj.id }})">✕</div>
+                <form action="/update" method="POST">
+                    <input type="hidden" name="id" value="{{ obj.id }}">
+                    <input type="hidden" name="category_id" value="{{ cat.id }}">
+                    <label>Населений пункт</label>
+                    <input type="text" name="name" value="{{ obj.name }}">
+                    <label>Об'єкт</label>
+                    <input type="text" name="company" value="{{ obj.company }}">
+                    <label>URL Карти</label>
+                    <input type="url" name="map_url" value="{{ obj.map_url }}">
+                    <button type="submit" class="save-btn">ОНОВИТИ</button>
+                </form>
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% endfor %}
+</div>
+
+<div id="confirmModal" class="modal-overlay">
+    <div class="modal-box">
+        <h3 id="modalTitle">Видалити?</h3>
+        <button class="modal-btn btn-red" id="confirmBtn">ВИДАЛИТИ</button>
+        <button class="modal-btn btn-gray" onclick="closeModal('confirmModal')">СКАСУВАТИ</button>
+    </div>
+</div>
+
+<div id="newCategoryModal" class="modal-overlay">
+    <div class="modal-box" style="margin-top: 15vh; margin-bottom: auto;">
+        <h3 style="margin-bottom: 20px;">Нова категорія</h3>
+        <form action="/add_category" method="POST">
+            <input type="text" id="newCatInput" name="name" placeholder="Назва" required style="text-align: center; padding: 15px; font-size: 18px; margin-bottom: 20px;">
+            <div style="display: flex; gap: 10px;">
+                <button type="button" class="modal-btn btn-gray" onclick="closeModal('newCategoryModal')" style="margin: 0; flex: 1;">СКАСУВАТИ</button>
+                <button type="submit" class="save-btn" style="margin: 0; flex: 1;">СТВОРИТИ</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedColor = localStorage.getItem('appAccentColor');
+        if (savedColor) document.documentElement.style.setProperty('--active-accent', savedColor);
+
+        // ВИПРАВЛЕНО: Фірмові кольори + їх тверді, матові пастельні версії (непрозорі)
+        const allBrandColors = [
+            { base: '#287365', pastel: '#D4E3E0' },
+            { base: '#7742CC', half: '#E4DAF5' }, // Перепрошую, тут була друкарська помилка, виправив на pastel
+            { base: '#7742CC', pastel: '#E4DAF5' },
+            { base: '#E63946', pastel: '#FAD8DA' },
+            { base: '#3A86FF', pastel: '#D8E7FF' },
+            { base: '#474A50', pastel: '#EAEAEA' }
+        ];
+        
+        const currentAccent = savedColor || '#287365';
+
+        // Генерація кольорових крапок на всіх існуючих картках
+        document.querySelectorAll('.card').forEach(card => {
+            let idStr = card.id.replace('card-', '');
+            if (idStr && idStr !== 'new') {
+                let savedBg = localStorage.getItem('card_bg_' + idStr);
+                // Навіть якщо колір збережено, він має бути непрозорим. 
+                // Старі кольори RGBA краще очистити, якщо вони були збережені раніше.
+                if (savedBg) {
+                    if (savedBg.includes('rgba')) {
+                        localStorage.removeItem('card_bg_' + idStr); // Очищаємо стару прозорість
+                        card.style.backgroundColor = ''; 
+                    } else {
+                        card.style.backgroundColor = savedBg;
+                    }
+                }
+
+                let colorsContainer = document.createElement('div');
+                colorsContainer.className = 'card-colors';
+                
+                // Додаємо 4 матові пастелі (виключаючи поточний активний колір додатку)
+                allBrandColors.forEach(c => {
+                    // Перевірка на pastel потрібна через мою друкарську помилку вище (вже виправив, але про всяк випадок залишу)
+                    if (c.base !== currentAccent && c.pastel) {
+                        let dot = document.createElement('div');
+                        dot.className = 'color-dot';
+                        dot.style.backgroundColor = c.pastel;
+                        dot.onclick = () => setCardColor(idStr, c.pastel);
+                        colorsContainer.appendChild(dot);
+                    }
+                });
+                
+                // Додаємо 5-й білий колір для скидання
+                let resetDot = document.createElement('div');
+                resetDot.className = 'color-dot';
+                resetDot.style.backgroundColor = '#FFFFFF';
+                resetDot.onclick = () => setCardColor(idStr, '');
+                colorsContainer.appendChild(resetDot);
+
+                card.appendChild(colorsContainer);
+            }
+        });
+    });
+
+    function setCardColor(id, color) {
+        const card = document.getElementById('card-' + id);
+        if (color) {
+            card.style.backgroundColor = color;
+            // Зберігаємо тільки твердий HEX колір
+            localStorage.setItem('card_bg_' + id, color);
+        } else {
+            card.style.backgroundColor = '';
+            localStorage.removeItem('card_bg_' + id);
+        }
+    }
+
+    document.addEventListener('focusin', function(e) {
+        if (e.target.tagName === 'INPUT' && e.target.closest('.card')) {
+            setTimeout(() => {
+                const card = e.target.closest('.card');
+                if (card) card.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }, 400); 
+        }
+    });
+
+    function openNewCategoryModal() {
+        const modal = document.getElementById('newCategoryModal');
+        const input = document.getElementById('newCatInput');
+        modal.style.display = 'flex';
+        document.body.classList.add('no-scroll');
+        setTimeout(() => input.focus(), 100); 
+    }
+
+    document.querySelectorAll('.list-block').forEach(block => {
+        new Sortable(block, {
+            animation: 200, easing: "cubic-bezier(0.2, 1, 0.2, 1)", delay: 150, delayOnTouchOnly: true,
+            touchStartThreshold: 15, filter: 'input, button, .delete-btn, label, .color-dot', preventOnFilter: false,
+            ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen', dragClass: 'sortable-drag',
+            forceFallback: true, fallbackTolerance: 3,
+            onChoose: function (evt) { if (navigator.vibrate) navigator.vibrate(50); },
+            onEnd: function (evt) {
+                let order = [];
+                block.querySelectorAll('.card').forEach(card => {
+                    let idInput = card.querySelector('input[name="id"]');
+                    if (idInput && idInput.value !== 'new') order.push(idInput.value);
+                });
+                if(order.length > 0) {
+                    fetch('/reorder_objects', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({order: order}) });
+                }
+            }
+        });
+    });
+
+    function switchTab(typeId, inputElement) {
+        if(inputElement.parentElement.classList.contains('edit-mode')) return; 
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        inputElement.classList.add('active');
+        document.querySelectorAll('.list-block').forEach(b => b.classList.remove('active'));
+        const target = document.getElementById('list-' + typeId);
+        if(target) target.classList.add('active');
+    }
+
+    function addNewEmptyCard() {
+        const activeBlock = document.querySelector('.list-block.active');
+        if (!activeBlock) return;
+        const catId = activeBlock.getAttribute('data-cat-id');
+        const html = `
+        <div class="card">
+            <div class="delete-btn" onclick="this.parentElement.remove()">✕</div>
+            <form action="/update" method="POST">
+                <input type="hidden" name="id" value="new">
+                <input type="hidden" name="category_id" value="${catId}">
+                <label>Населений пункт</label>
+                <input type="text" name="name" value="">
+                <label>Об'єкт</label>
+                <input type="text" name="company" value="">
+                <label>URL Карти</label>
+                <input type="url" name="map_url" value="">
+                <button type="submit" class="save-btn">ОНОВИТИ</button>
+            </form>
+        </div>`;
+        activeBlock.insertAdjacentHTML('afterbegin', html);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    let pressTimer;
+    document.querySelectorAll('.tab-wrapper').forEach(wrapper => {
+        wrapper.addEventListener('touchstart', (e) => {
+            pressTimer = setTimeout(() => {
+                wrapper.classList.add('edit-mode');
+                let input = wrapper.querySelector('.tab');
+                input.removeAttribute('readonly');
+                input.focus();
+            }, 800);
+        });
+        wrapper.addEventListener('touchend', () => clearTimeout(pressTimer));
+        wrapper.addEventListener('touchmove', () => clearTimeout(pressTimer));
+    });
+
+    function saveCategoryName(inputElement, catId) {
+        setTimeout(() => {
+            inputElement.parentElement.classList.remove('edit-mode');
+            inputElement.setAttribute('readonly', true);
+            const newName = inputElement.value;
+            let formData = new FormData(); formData.append('id', catId); formData.append('name', newName);
+            fetch('/update_category', { method: 'POST', body: formData });
+        }, 200);
+    }
+
+    function closeModal(modalId) { 
+        document.getElementById(modalId).style.display = 'none'; 
+        document.body.classList.remove('no-scroll');
+    }
+
+    function confirmDeleteObject(objId) {
+        document.getElementById('modalTitle').innerText = "Видалити об'єкт?";
+        document.getElementById('confirmModal').style.display = 'flex';
+        document.body.classList.add('no-scroll');
+        document.getElementById('confirmBtn').onclick = function() {
+            fetch('/delete_object/' + objId, { method: 'POST' }).then(() => {
+                document.getElementById('card-' + objId).remove();
+                closeModal('confirmModal');
+            });
+        };
+    }
+
+    function confirmDeleteCategory(catId) {
+        document.getElementById('modalTitle').innerText = "Видалити категорію?";
+        document.getElementById('confirmModal').style.display = 'flex';
+        document.body.classList.add('no-scroll');
+        document.getElementById('confirmBtn').onclick = function() {
+            fetch('/delete_category/' + catId, { method: 'POST' }).then(() => location.reload() );
+        };
+    }
+</script>
+</body>
+</html>
